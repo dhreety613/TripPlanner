@@ -21,6 +21,8 @@ export const config = {
     apiKey: env.LLM_API_KEY || '',
     baseUrl: (env.LLM_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
     model: env.LLM_MODEL || 'gpt-4o-mini',
+    // Some compat endpoints (e.g. Gemini 3.x) stall on SSE; LLM_STREAM=false uses one plain call.
+    stream: env.LLM_STREAM !== 'false',
   },
   upstreamTimeoutMs: Number(env.UPSTREAM_TIMEOUT_MS) || 90_000,
   rateLimit: { windowMs: 60_000, max: Number(env.RATE_LIMIT_PER_MIN) || 12 },

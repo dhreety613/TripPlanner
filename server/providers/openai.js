@@ -2,7 +2,7 @@ import { ProviderError, sseData, toProviderError } from './http.js';
 
 // Works with any OpenAI-compatible chat completions API (OpenAI, Groq, OpenRouter,
 // Gemini's compat endpoint, Ollama). Set LLM_BASE_URL / LLM_MODEL / LLM_API_KEY.
-export function createOpenAICompat({ apiKey, baseUrl, model }) {
+export function createOpenAICompat({ apiKey, baseUrl, model, stream = true }) {
   return {
     name: 'openai-compat',
     model,
@@ -16,7 +16,7 @@ export function createOpenAICompat({ apiKey, baseUrl, model }) {
         },
         body: JSON.stringify({
           model,
-          stream: true,
+          stream,
           temperature: 0.7,
           max_tokens: 4096,
           messages: [
@@ -26,6 +26,16 @@ export function createOpenAICompat({ apiKey, baseUrl, model }) {
         }),
       });
       if (!res.ok) throw await toProviderError(res);
+      if (!stream) {
+        // Non-streaming: one JSON reply. The server's line parser still emits blocks one by one.
+        const json = await res.json().catch(() => null);
+        const text = json?.choices?.[0]?.message?.content;
+        if (typeof text !== 'string' || !text.trim()) {
+          throw new ProviderError('UPSTREAM_ERROR', 'The AI provider returned no content.', { status: 502, retryable: true });
+        }
+        yield text;
+        return;
+      }
       for await (const data of sseData(res.body)) {
         if (data === '[DONE]') return;
         let ev;
