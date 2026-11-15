@@ -1,0 +1,16 @@
+{
+  "name": "@trip/server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch --env-file-if-exists=../.env index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@trip/shared": "*",
+    "express": "^4.21.2",
+    "zod": "^3.23.8"
+  }
+}
