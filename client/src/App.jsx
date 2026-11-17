@@ -7,6 +7,14 @@ import { PromptForm, RefineBar, StatusBar, ErrorPanel, Skeleton, SessionsPanel }
 import { Strawberry } from './components/Decor.jsx';
 import { Landing } from './components/Landing.jsx';
 
+
+const Icon = ({ children }) => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
+);
+const IconBook = () => <Icon><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z" /><path d="M4 5.5V21.5" /><path d="M9 8h7" /></Icon>;
+const IconMoon = () => <Icon><path d="M20 14.5A8 8 0 0 1 9.500 4 8 8 0 1 0 20 14.500z" /></Icon>;
+const IconSun = () => <Icon><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.900 4.900l1.400 1.400M17.700 17.700l1.400 1.400M4.900 19.100l1.400-1.400M17.700 6.300l1.400-1.400" /></Icon>;
+
 export default function App() {
   const [hist, dispatch] = useReducer(historyReducer, initialHistory);
   const plan = hist.present;
@@ -88,8 +96,8 @@ export default function App() {
           {health?.mock && <span className="chip demo" title="No API key configured: responses come from a built-in mock model.">demo model</span>}
           <button className="icon-btn hist" onClick={() => dispatch({ type: 'undo' })} disabled={!hist.past.length || planner.busy} aria-label="Undo" title="Undo (Ctrl+Z)">↶</button>
           <button className="icon-btn hist" onClick={() => dispatch({ type: 'redo' })} disabled={!hist.future.length || planner.busy} aria-label="Redo" title="Redo (Ctrl+Shift+Z)">↷</button>
-          <button className="icon-btn" onClick={() => setShowSessions((s) => !s)} aria-label="Saved trips" aria-pressed={showSessions} title="Saved trips">📒</button>
-          <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle dark mode" title="Toggle theme">{theme === 'dark' ? '☀️' : '🌙'}</button>
+          <button className="icon-btn" onClick={() => setShowSessions((s) => !s)} aria-label="Saved trips" aria-pressed={showSessions} title="Saved trips"><IconBook /></button>
+          <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle dark mode" title="Toggle theme">{theme === 'dark' ? <IconSun /> : <IconMoon />}</button>
         </nav>
       </header>
 
@@ -119,7 +127,6 @@ export default function App() {
           </>
         )}
       </main>
-      {!landing && <footer className="foot muted">Drag ⋮⋮ or use Alt+↑/↓ to reorder · Enter expands · Delete removes · Ctrl+Z undoes</footer>}
     </div>
   );
 }

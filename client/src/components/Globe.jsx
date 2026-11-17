@@ -305,6 +305,16 @@ export default function Globe({ onPick }) {
     };
   }, [failed, onPick]);
 
+  const choose = (i) => (api.current.select ? api.current.select(i) : (setActive(i), onPick?.(PLACES[i])));
+  const onKey = (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      choose((active + (e.key === 'ArrowRight' ? 1 : -1) + PLACES.length) % PLACES.length);
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      choose(active);
+    }
+  };
   const shown = PLACES[hover >= 0 ? hover : active];
   return (
     <div className="globe-wrap">
@@ -316,15 +326,26 @@ export default function Globe({ onPick }) {
         </p>
       </div>
 
-      {failed ? (
-        <div className="globe-fallback" role="img" aria-label="Globe unavailable on this device">🌍</div>
-      ) : (
-        <div className="globe-canvas" ref={mount}>
-          <div className="globe-label" ref={label} aria-hidden="true" />
-        </div>
-      )}
+      <div
+        className="globe-stage"
+        tabIndex={0}
+        role="group"
+        aria-roledescription="globe"
+        aria-label="Trending destinations globe. Use the left and right arrow keys to choose a destination."
+        onKeyDown={onKey}
+      >
+        {failed ? (
+          <div className="globe-fallback" aria-hidden="true">
+            <i />
+          </div>
+        ) : (
+          <div className="globe-canvas" ref={mount}>
+            <div className="globe-label" ref={label} aria-hidden="true" />
+          </div>
+        )}
+      </div>
 
-      <figure className="place-card" key={shown.id}>
+      <figure className="place-card" key={shown.id} aria-live="polite">
         <img src={photo(shown)} alt={`${shown.name}, ${shown.country}`} width="800" height="533" loading="lazy" decoding="async" />
         <figcaption>
           <strong>{shown.name}<small>{shown.country}</small></strong>
@@ -333,14 +354,6 @@ export default function Globe({ onPick }) {
       </figure>
       <p className="globe-hint muted">Click a dot and the trip writes itself in the box</p>
 
-      {/* Accessible alternative to the canvas: real buttons, visible only when focused */}
-      <div className="globe-chips sr-focusable" role="group" aria-label="Trending destinations">
-        {PLACES.map((p, i) => (
-          <button key={p.id} type="button" className={`chip btn-chip${active === i ? ' on' : ''}`} onClick={() => (api.current.select ? api.current.select(i) : (setActive(i), onPick?.(PLACES[i])))} aria-pressed={active === i}>
-            {p.name}
-          </button>
-        ))}
-      </div>
       <a className="credits muted" href="/credits.html" target="_blank" rel="noopener">Photo credits</a>
     </div>
   );

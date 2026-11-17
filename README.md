@@ -63,21 +63,23 @@ browser ──POST /api/plan──▶ Express ──stream──▶ LLM (Gemini 
 - **"Trending now" globe** (`components/Globe.jsx`, three.js): 13 destinations, **6 in India** (Shillong, Darjeeling, Jaipur, Goa, Leh-Ladakh, Munnar) and **7 abroad** (Kyoto, Lisbon, Bali, Bangkok, Dubai, Singapore, Santorini), India in berry, abroad in sky blue. Drag to spin (with inertia), hover a dot for its name and a **real photo card**, click a dot: the globe turns and zooms to it, a flight arc is drawn from the previous pick, and the trip **writes itself into the prompt box** (typewriter effect; typing yourself cancels it; reduced motion makes it instant).
 - The list lives in `client/src/lib/places.js`. It is **hand-curated**, not live analytics: "Trending" is an editorial label, not measured data.
 - **Performance + safety**: lazy-loaded chunk (the page paints before three.js arrives), pauses when off-screen or the tab is hidden, `prefers-reduced-motion` stops auto-rotation, WebGL feature-detected with a fallback, all geometries/materials/renderer disposed on unmount, colours read from the CSS theme tokens (follows dark mode).
-- **Accessible alternative**: the canvas is `aria-hidden`; every dot also exists as a real `<button>` that appears when it receives keyboard focus. On phones the globe is accompanied by a tappable photo strip of the same places.
+- **Keyboard**: the globe is focusable; **←/→** choose a destination (the photo card is an `aria-live` region, so the choice is announced) and Enter re-writes the trip. On phones the globe is accompanied by a tappable photo strip of the same places.
+- **Slow photo reel** (left of the prompt): five real photos in a seamless, upward-scrolling loop (the list is rendered twice and translated by −50% in CSS, the copy is `aria-hidden`; it pauses on hover and stops for `prefers-reduced-motion`).
 - **CSS 3D tilt** on the polaroids (pointer position → `perspective()` rotation via CSS variables, no re-renders).
 - The globe is a dotted sphere + graticule; no continent outlines are bundled.
 
 ### Photos and credits
 
 All place photos are real photographs from **Wikimedia Commons** under Creative Commons licences (CC BY, CC BY-SA, or CC0), resized and **self-hosted** in `client/public/img/places/` (the strict CSP forbids hotlinking, and self-hosting means they never break). Every photo's author, licence and source page is listed at [`/credits.html`](client/public/credits.html) (linked from the UI as "Photo credits").
-The "Himalayan wild cherry in bloom" polaroid shows *Prunus cerasoides*, the species behind Shillong's November blossom; the photo itself was taken elsewhere, and its caption says only what it shows. The review cards are **sample copy**, labelled as such in the UI.
+The "Himalayan wild cherry in bloom" polaroid shows *Prunus cerasoides*, the species behind Shillong's November blossom; the photo itself was taken elsewhere, and its caption says only what it shows. The review cards are **sample copy** with mixed ratings (5, 4 and 3 stars); each card carries a small "sample" tag so nobody mistakes them for real customers.
 
 ### Design system
 
 - Tokens as CSS variables (`styles.css`): watercolour sage / blush / cream / leaf palette, light + dark theme (follows the OS, toggle persists).
-- Typography: **Sora** (display) + **Inter** (body), self-hosted via `@fontsource-variable` so nothing is fetched from a third party and the strict CSP stays intact.
+- Typography: **Sora** (display, headings, "Trending now") + **Inter** (body), self-hosted via `@fontsource-variable` so nothing is fetched from a third party and the strict CSP stays intact.
+- **Glass finish**: translucent cards with `backdrop-filter` blur + saturation, a 1 px light edge and an inner highlight, over soft blurred colour blobs; separate light and dark tokens. Icons are inline SVG line icons (no emoji), and the doodles are original SVG (cute strawberries, clouds, a paper-plane trail).
 - Layout: the landing is vertically centred in the viewport; at ≤1020 px it collapses to one column and the polaroids become a snap-scrolling strip.
-- Accessibility: visible focus rings, labelled controls, `role="status"` live region for progress, `role="alert"` for errors, keyboard reordering (**Alt+↑/↓**), Enter expands, Delete removes, Ctrl+Z undo.
+- Accessibility: visible focus rings, labelled controls, `role="status"` live region for progress, `role="alert"` for errors. Keyboard shortcuts still work (**Alt+↑/↓** reorders a focused stop, Enter expands, Delete removes, Ctrl+Z undoes, Esc cancels a running request) but are no longer printed on screen.
 
 ## Failure handling (the important part)
 

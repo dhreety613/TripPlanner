@@ -43,7 +43,7 @@ export function PromptForm({ onSubmit, busy, onCancel, big = false, initial = ''
           {EXAMPLES.map((x) => <button type="button" key={x} className="chip btn-chip" onClick={() => { setV(x); ref.current?.focus(); }}>{x.length > 34 ? x.slice(0, 32) + '…' : x}</button>)}
         </div>
         {busy ? (
-          <button type="button" className="btn ghost" onClick={onCancel}>Cancel (Esc)</button>
+          <button type="button" className="btn ghost" onClick={onCancel}>Cancel</button>
         ) : (
           <button className="btn" disabled={v.trim().length < 3}>Plan my trip</button>
         )}

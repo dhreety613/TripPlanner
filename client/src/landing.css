@@ -32,23 +32,15 @@ h2, h3 { letter-spacing: -0.01em; }
 /* polaroids + doodles */
 .hero-side { position: relative; display: flex; flex-direction: column; gap: 18px; align-items: center; min-height: 420px; justify-content: center; }
 .polaroid { margin: 0; background: #fff; padding: 9px 9px 6px; border-radius: 6px; box-shadow: 0 10px 24px rgba(60, 70, 30, 0.22); width: min(230px, 100%); transition: transform 0.25s; }
+.polaroid { --rot: 0deg; --rx: 0deg; --ry: 0deg; transform: rotate(var(--rot)) perspective(700px) rotateX(var(--rx)) rotateY(var(--ry)); transform-style: preserve-3d; will-change: transform; }
 .polaroid:hover { z-index: 4; box-shadow: 0 18px 34px rgba(60, 70, 30, 0.3); }
 .polaroid-art { aspect-ratio: 3 / 2; overflow: hidden; border-radius: 3px; }
 .polaroid-art svg { display: block; width: 100%; height: 100%; }
 .polaroid figcaption { text-align: center; padding: 8px 4px 4px; font-family: var(--font-display); font-size: 0.78rem; font-weight: 600; color: #3b3a2e; }
-.polaroid.p1 { transform: rotate(-5deg) translateX(-6px); }
-.polaroid.p2 { transform: rotate(4deg) translateX(14px); }
-.polaroid.p3 { transform: rotate(5deg); width: min(250px, 100%); }
 .doodle { position: absolute; pointer-events: none; }
-.d-compass { width: 64px; left: -8px; top: 6px; transform: rotate(-12deg); }
 .d-plane { width: 170px; right: 27%; top: 1%; }
-.d-suitcase { width: 58px; left: 4%; bottom: 3%; transform: rotate(-8deg); }
 .d-cloud1 { width: 90px; top: -4px; left: 6%; opacity: 0.9; animation: drift 14s ease-in-out infinite alternate; }
-.d-cloud2 { width: 70px; top: 40px; right: 8%; opacity: 0.8; animation: drift 11s ease-in-out infinite alternate-reverse; }
-.d-spark1 { top: 3%; left: 19%; animation: twinkle 2.6s infinite; }
-.d-spark2 { top: 9%; right: 17%; animation: twinkle 3.1s 0.6s infinite; }
-.d-blossom1 { bottom: 8%; left: 33%; animation: spin 20s linear infinite; }
-.d-blossom2 { bottom: 14%; right: 31%; animation: spin 26s linear infinite reverse; }
+.d-cloud2 { width: 70px; top: 6px; right: 22%; opacity: 0.8; animation: drift 11s ease-in-out infinite alternate-reverse; }
 .hero-strip { display: none; }
 
 /* floating, swipeable review cards */
@@ -64,7 +56,6 @@ h2, h3 { letter-spacing: -0.01em; }
 .review small { color: var(--muted); }
 .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--berry); color: #fff; display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; }
 .stars { display: inline-flex; gap: 2px; }
-.review-ctl { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 6px; }
 
 :root[data-theme='dark'] .polaroid { background: #efe9d6; }
 :root[data-theme='dark'] .review.sh, :root[data-theme='dark'] .review.cb, :root[data-theme='dark'] .review.lk { background: var(--card); }
@@ -95,25 +86,15 @@ h2, h3 { letter-spacing: -0.01em; }
 .globe-canvas, .globe-fallback { position: relative; width: 100%; aspect-ratio: 1; }
 .globe-fallback { display: grid; place-items: center; font-size: 6rem; }
 .globe-label { position: absolute; left: 0; top: 0; pointer-events: none; opacity: 0; transition: opacity 0.15s; background: var(--ink); color: var(--card); font: 600 0.75rem var(--font-display); padding: 3px 10px; border-radius: 999px; white-space: nowrap; z-index: 3; }
-.globe-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .btn-chip.on { background: var(--berry); color: #fff; }
 .globe-hint { font-size: 0.75rem; }
 
 .app.landing .hist { display: none; }
 
-/* make the destination chips and review arrows read as buttons */
-.globe-chips .btn-chip { background: var(--card); border: 1.5px solid var(--leaf); color: var(--leaf-deep); padding: 4px 14px; font-weight: 700; box-shadow: 0 2px 0 var(--line); }
-.globe-chips .btn-chip:hover { background: var(--blush); }
-.globe-chips .btn-chip.on { background: var(--berry); border-color: var(--berry-deep); color: #fff; }
-.review-ctl .icon-btn { background: var(--card); border: 1.5px solid var(--line); border-radius: 50%; width: 40px; height: 40px; box-shadow: 0 2px 0 var(--line); font-size: 1.1rem; color: var(--leaf-deep); }
-.review-ctl .icon-btn:hover { background: var(--blush); }
-@media (max-width: 1020px) { .d-suitcase, .d-compass { display: none; } }
-
 /* ---- Trending globe: heading, legend, photo card ---- */
 :root { --sky: #3d93b8; }
 :root[data-theme='dark'] { --sky: #6cc0e0; }
 .trend-head { text-align: center; }
-.trend-title { margin: 0; font-family: 'Fraunces Variable', Georgia, serif; font-style: italic; font-weight: 600; font-size: 2rem; line-height: 1.1; letter-spacing: -0.01em; color: var(--berry-deep); }
 .trend-legend { display: flex; gap: 14px; justify-content: center; margin: 4px 0 0; font: 600 0.68rem var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
 .dot.india { background: var(--berry); }
@@ -139,3 +120,77 @@ h2, h3 { letter-spacing: -0.01em; }
 /* HTML width/height attributes would otherwise lock the height and defeat aspect-ratio */
 .place-card img, .strip-card img { height: auto; }
 @media (max-width: 1020px) { .d-plane { display: none; } .place-card { max-width: 420px; } }
+
+/* ---- Trending heading: same type system as the rest of the UI ---- */
+.trend-title { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 1.3rem; line-height: 1.15; letter-spacing: -0.02em; color: var(--ink); }
+.trend-title::after { content: ''; display: block; width: 28px; height: 3px; border-radius: 3px; background: var(--berry); margin: 7px auto 0; }
+
+/* ---- Slow scrolling photo reel (left) ---- */
+.hero-side.left { min-height: 0; align-self: stretch; }
+.marquee { position: relative; width: min(250px, 100%); height: min(560px, 68vh); overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent); }
+.marquee-track { animation: reel 52s linear infinite; will-change: transform; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
+.reel-group { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 14px 8px 22px; }
+@keyframes reel { to { transform: translateY(-50%); } }
+
+/* ---- Cute strawberry doodles ---- */
+.d-berry1 { top: 1%; left: 30%; animation: bob 4.2s ease-in-out infinite; }
+.d-berry2 { top: 2%; right: 6%; animation: bob 5s 0.6s ease-in-out infinite; }
+.d-berry3 { bottom: 1%; right: 7%; animation: bob 4.6s 0.3s ease-in-out infinite; }
+.d-berry4 { bottom: 3%; left: 41%; animation: bob 5.4s 0.9s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(-7px) rotate(5deg); } }
+
+/* ---- Reviews: varied stars, animated fill, sample tag ---- */
+.review-top { display: flex; justify-content: space-between; align-items: center; }
+.sample-tag { font: 600 0.6rem var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+.star-in { animation: starIn 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.4) both; animation-delay: calc(var(--i) * 90ms + 120ms); transform-origin: center; }
+@keyframes starIn { from { transform: scale(0.2) rotate(-40deg); opacity: 0; } }
+
+/* ---- Globe stage (keyboard operable) ---- */
+.globe-stage { width: 100%; border-radius: 50%; }
+.globe-fallback i { display: block; width: 70%; aspect-ratio: 1; border-radius: 50%; border: 2px solid var(--leaf); background: radial-gradient(circle at 35% 30%, #fff, var(--bg2)); }
+
+/* ---- Glass finish ---- */
+:root {
+  --glass: color-mix(in srgb, var(--card) 56%, transparent);
+  --glass-strong: color-mix(in srgb, var(--card) 74%, transparent);
+  --glass-edge: rgba(255, 255, 255, 0.72);
+  --glass-shadow: 0 10px 34px rgba(50, 80, 35, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 -1px 0 rgba(255, 255, 255, 0.25);
+}
+:root[data-theme='dark'] {
+  --glass-edge: rgba(255, 255, 255, 0.13);
+  --glass-shadow: 0 10px 34px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+body::before { content: ''; position: fixed; inset: -10%; z-index: -1; pointer-events: none; filter: blur(28px);
+  background:
+    radial-gradient(40% 35% at 85% 14%, color-mix(in srgb, var(--blush) 95%, transparent), transparent 70%),
+    radial-gradient(38% 40% at 8% 82%, color-mix(in srgb, var(--sky) 38%, transparent), transparent 70%),
+    radial-gradient(36% 34% at 52% 100%, color-mix(in srgb, var(--leaf) 30%, transparent), transparent 70%); }
+.card, .review {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+}
+.card.prompt.big { box-shadow: 0 22px 50px rgba(50, 80, 35, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 -1px 0 rgba(255, 255, 255, 0.3); }
+.review { background: var(--glass-strong); }
+.review.sh { background: linear-gradient(135deg, var(--glass-strong), color-mix(in srgb, #cfe6b8 50%, transparent)); }
+.review.cb { background: linear-gradient(135deg, var(--glass-strong), color-mix(in srgb, #f9c6d8 50%, transparent)); }
+.review.lk { background: linear-gradient(135deg, var(--glass-strong), color-mix(in srgb, #bfe0f2 50%, transparent)); }
+textarea, input, select { background: color-mix(in srgb, var(--paper) 60%, transparent); border-color: color-mix(in srgb, var(--line) 80%, transparent); }
+.top { -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); background: color-mix(in srgb, var(--bg) 48%, transparent); }
+.place-card { border: 1px solid var(--glass-edge); box-shadow: var(--glass-shadow); }
+.place-card figcaption { -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.chip { background: color-mix(in srgb, var(--blush) 70%, transparent); }
+.btn-chip { background: color-mix(in srgb, var(--bg2) 70%, transparent); }
+.icon-btn svg { display: block; }
+:root[data-theme='dark'] .review.sh, :root[data-theme='dark'] .review.cb, :root[data-theme='dark'] .review.lk { background: var(--glass-strong); }
+
+@media (max-width: 1020px) {
+  .d-berry3, .d-berry4 { display: none; }
+  .d-berry1 { top: -4px; left: 3%; }
+  .d-berry2 { top: -2px; right: 3%; }
+  .marquee { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
