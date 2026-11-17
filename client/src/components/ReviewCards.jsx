@@ -91,18 +91,13 @@ export function ReviewCards() {
     <section
       className="reviews"
       aria-roledescription="carousel"
-      aria-label="Traveller reviews (sample)"
+      aria-label="Traveller reviews (sample). Left and right arrow keys change the review"
       tabIndex={0}
       onKeyDown={(e) => (e.key === 'ArrowRight' ? go(1) : e.key === 'ArrowLeft' ? go(-1) : null)}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => start.current == null && setPaused(false)}
     >
       <div className="review-stack">{[2, 1, 0].map((d) => card(d, d))}</div>
-      <div className="review-ctl">
-        <button className="icon-btn" onClick={() => go(-1)} aria-label="Previous review">←</button>
-        <span className="muted">Swipe or drag · sample reviews</span>
-        <button className="icon-btn" onClick={() => go(1)} aria-label="Next review">→</button>
-      </div>
     </section>
   );
 }

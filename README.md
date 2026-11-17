@@ -30,7 +30,7 @@ Describe a trip in plain English. A real LLM streams back **structured blocks** 
 | Stale response must not overwrite a newer one | request id + `AbortController` in `usePlanner` |
 | Loading / error / empty states | skeleton, streaming status bar, error panel, landing hero |
 | Mobile | single-column layout, touch reorder buttons, tested at 390 px |
-| 3D interactive frontend | three.js globe + CSS 3D tilt (see [3D](#3d-and-motion)) |
+| 3D interactive frontend | three.js "Trending now" globe + CSS 3D tilt (see [3D](#3d-and-motion)) |
 
 ## Frontend architecture
 
@@ -38,7 +38,7 @@ Describe a trip in plain English. A real LLM streams back **structured blocks** 
 App.jsx ── useReducer(historyReducer)            plan state + undo/redo (pure, unit-tested)
    │    └─ usePlanner(dispatch)                  request lifecycle: reqId, AbortController, retry, stall watchdog
    │
-   ├─ Landing (no plan yet)    Globe (lazy, three.js) · Polaroids (CSS 3D tilt) · ReviewCards (swipe) · PromptForm
+   ├─ Landing (no plan yet)    Globe (lazy, three.js) · Polaroids (CSS 3D tilt) · ReviewCards (auto-swipe) · PromptForm (typewriter)
    └─ Plan view                PromptForm · StatusBar · ErrorPanel · ItineraryView (days/stops, DnD, keyboard)
                                Extras (checklist · budget chart · tip) · RefineBar · SessionsPanel
 ```
@@ -60,11 +60,17 @@ browser ──POST /api/plan──▶ Express ──stream──▶ LLM (Gemini 
 
 ### 3D and motion
 
-- **Interactive globe** (`components/Globe.jsx`, three.js): drag to spin with inertia, hover a pin for its name, click a pin (or its button) and the globe turns to face it and **pre-fills the prompt** with a trip for that place. Animated route arcs and pulsing pins.
-- **Performance + safety**: lazy-loaded chunk (the page paints before three.js arrives), pauses when off-screen or the tab is hidden, `prefers-reduced-motion` stops auto-rotation, WebGL feature-detected with a static fallback, all geometries/materials/renderer disposed on unmount, colours read from the CSS theme tokens (follows dark mode).
-- **Accessible alternative**: the canvas is `aria-hidden`; every pin also exists as a real `<button>` below it.
+- **"Trending now" globe** (`components/Globe.jsx`, three.js): 13 destinations, **6 in India** (Shillong, Darjeeling, Jaipur, Goa, Leh-Ladakh, Munnar) and **7 abroad** (Kyoto, Lisbon, Bali, Bangkok, Dubai, Singapore, Santorini), India in berry, abroad in sky blue. Drag to spin (with inertia), hover a dot for its name and a **real photo card**, click a dot: the globe turns and zooms to it, a flight arc is drawn from the previous pick, and the trip **writes itself into the prompt box** (typewriter effect; typing yourself cancels it; reduced motion makes it instant).
+- The list lives in `client/src/lib/places.js`. It is **hand-curated**, not live analytics: "Trending" is an editorial label, not measured data.
+- **Performance + safety**: lazy-loaded chunk (the page paints before three.js arrives), pauses when off-screen or the tab is hidden, `prefers-reduced-motion` stops auto-rotation, WebGL feature-detected with a fallback, all geometries/materials/renderer disposed on unmount, colours read from the CSS theme tokens (follows dark mode).
+- **Accessible alternative**: the canvas is `aria-hidden`; every dot also exists as a real `<button>` that appears when it receives keyboard focus. On phones the globe is accompanied by a tappable photo strip of the same places.
 - **CSS 3D tilt** on the polaroids (pointer position → `perspective()` rotation via CSS variables, no re-renders).
-- The globe is a dotted sphere + graticule: no real continent data is bundled. Scene "photos" are original inline-SVG illustrations, and the review cards are **sample copy**, labelled as such in the UI.
+- The globe is a dotted sphere + graticule; no continent outlines are bundled.
+
+### Photos and credits
+
+All place photos are real photographs from **Wikimedia Commons** under Creative Commons licences (CC BY, CC BY-SA, or CC0), resized and **self-hosted** in `client/public/img/places/` (the strict CSP forbids hotlinking, and self-hosting means they never break). Every photo's author, licence and source page is listed at [`/credits.html`](client/public/credits.html) (linked from the UI as "Photo credits").
+The "Himalayan wild cherry in bloom" polaroid shows *Prunus cerasoides*, the species behind Shillong's November blossom; the photo itself was taken elsewhere, and its caption says only what it shows. The review cards are **sample copy**, labelled as such in the UI.
 
 ### Design system
 
@@ -173,7 +179,7 @@ About **5 hours** in total:
 - Native HTML5 drag-and-drop doesn't work on touch screens; the ↑/↓ buttons and the "Move to" menu cover mobile.
 - Gemini is called without streaming (see above), so on the live demo a plan appears after a few seconds rather than card by card.
 - The free Render tier cold-starts and has no persistent disk.
-- The globe has no real continent outlines; the pins are five example destinations.
+- The globe has no continent outlines, and the 13 "trending" pins are a curated list, not live data.
 
 ## What I'd do next
 

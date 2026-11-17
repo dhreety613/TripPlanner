@@ -10,8 +10,23 @@ export const EXAMPLES = [
 export function PromptForm({ onSubmit, busy, onCancel, big = false, initial = '', seed }) {
   const [v, setV] = useState(initial);
   const ref = useRef(null);
+  const typer = useRef(null);
+  const stopTyping = () => { clearInterval(typer.current); typer.current = null; };
+  // A picked destination "writes itself" into the box (typewriter). Typing yourself cancels it; reduced motion = instant.
   useEffect(() => {
-    if (seed?.n) { setV(seed.text); ref.current?.focus({ preventScroll: true }); }
+    if (!seed?.n) return undefined;
+    stopTyping();
+    ref.current?.focus({ preventScroll: true });
+    const text = seed.text;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { setV(text); return undefined; }
+    let i = 0;
+    setV('');
+    typer.current = setInterval(() => {
+      i = Math.min(text.length, i + 2);
+      setV(text.slice(0, i));
+      if (i >= text.length) stopTyping();
+    }, 24);
+    return stopTyping;
   }, [seed?.n]);
   const submit = (e) => {
     e?.preventDefault();
@@ -22,7 +37,7 @@ export function PromptForm({ onSubmit, busy, onCancel, big = false, initial = ''
     <form className={`card prompt${big ? ' big' : ''}`} onSubmit={submit}>
       <label htmlFor="trip-prompt" className="sr">Describe your trip</label>
       <textarea id="trip-prompt" ref={ref} rows={big ? 4 : 3} maxLength={1000} value={v} placeholder="Where to, for how long, and what are you into? e.g. 5 days in Seoul, cafés and night markets"
-        onChange={(e) => setV(e.target.value)} onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && submit(e)} />
+        onChange={(e) => { stopTyping(); setV(e.target.value); }} onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && submit(e)} />
       <div className="prompt-foot">
         <div className="examples">
           {EXAMPLES.map((x) => <button type="button" key={x} className="chip btn-chip" onClick={() => { setV(x); ref.current?.focus(); }}>{x.length > 34 ? x.slice(0, 32) + '…' : x}</button>)}
@@ -42,7 +57,7 @@ export function RefineBar({ onSubmit, busy }) {
   return (
     <form className="card refine" onSubmit={(e) => { e.preventDefault(); if (!busy && v.trim().length >= 3) { onSubmit(v.trim()); setV(''); } }}>
       <label htmlFor="refine" className="sr">Refine the plan</label>
-      <input id="refine" value={v} onChange={(e) => setV(e.target.value)} maxLength={1000} placeholder="Refine: “make it cheaper”, “add a night market on day 2”…" disabled={busy} />
+      <input id="refine" value={v} onChange={(e) => { stopTyping(); setV(e.target.value); }} maxLength={1000} placeholder="Refine: “make it cheaper”, “add a night market on day 2”…" disabled={busy} />
       <button className="btn small" disabled={busy || v.trim().length < 3}>Refine</button>
     </form>
   );

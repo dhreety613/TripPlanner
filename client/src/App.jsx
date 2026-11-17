@@ -119,7 +119,7 @@ export default function App() {
           </>
         )}
       </main>
-      <footer className="foot muted">Drag ⋮⋮ or use Alt+↑/↓ to reorder · Enter expands · Delete removes · Ctrl+Z undoes</footer>
+      {!landing && <footer className="foot muted">Drag ⋮⋮ or use Alt+↑/↓ to reorder · Enter expands · Delete removes · Ctrl+Z undoes</footer>}
     </div>
   );
 }

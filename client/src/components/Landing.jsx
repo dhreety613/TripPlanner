@@ -1,4 +1,5 @@
-import { ShillongScene, CherryScene, LakeScene, PlaneTrail, Compass, Suitcase, Squiggle, Sparkle, Cloud } from './Scenes.jsx';
+import { PlaneTrail, Compass, Suitcase, Squiggle, Sparkle, Cloud } from './Scenes.jsx';
+import { PLACES, photo } from '../lib/places.js';
 import { Blossom } from './Decor.jsx';
 import { ReviewCards } from './ReviewCards.jsx';
 import { lazy, Suspense } from 'react';
@@ -14,10 +15,10 @@ function tilt(e) {
 }
 const untilt = (e) => { e.currentTarget.style.setProperty('--ry', '0deg'); e.currentTarget.style.setProperty('--rx', '0deg'); };
 
-function Polaroid({ children, caption, className }) {
+function Polaroid({ src, alt, caption, className }) {
   return (
     <figure className={`polaroid ${className}`} onPointerMove={tilt} onPointerLeave={untilt}>
-      <div className="polaroid-art">{children}</div>
+      <div className="polaroid-art"><img src={src} alt={alt} width="800" height="533" loading="lazy" decoding="async" /></div>
       <figcaption>{caption}</figcaption>
     </figure>
   );
@@ -34,10 +35,11 @@ export function Landing({ children, onPick }) {
       <Blossom size={34} className="doodle d-blossom1" />
       <Blossom size={22} className="doodle d-blossom2" />
       <Suitcase className="doodle d-suitcase" />
+      <PlaneTrail className="doodle d-plane" />
 
       <div className="hero-side left">
-        <Polaroid className="p1" caption="Shillong, Meghalaya"><ShillongScene /></Polaroid>
-        <Polaroid className="p2" caption="Cherry Blossom season"><CherryScene /></Polaroid>
+        <Polaroid className="p1" src="/img/places/shillong.jpg" alt="View over Shillong, Meghalaya" caption="Shillong, Meghalaya" />
+        <Polaroid className="p2" src="/img/places/cherry.jpg" alt="Himalayan wild cherry (Prunus cerasoides) in bloom" caption="Himalayan wild cherry in bloom" />
         <Compass className="doodle d-compass" />
       </div>
 
@@ -55,14 +57,16 @@ export function Landing({ children, onPick }) {
         <Suspense fallback={<div className="globe-wrap"><div className="globe-fallback" aria-hidden="true">🌍</div></div>}>
           <Globe onPick={onPick} />
         </Suspense>
-        <PlaneTrail className="doodle d-plane" />
       </div>
 
-      {/* Mobile: scenes become a swipeable strip under the prompt */}
-      <div className="hero-strip" aria-hidden="true">
-        <ShillongScene />
-        <CherryScene />
-        <LakeScene />
+      {/* Phones: tappable photo strip of the trending places (tap = write that trip) */}
+      <div className="hero-strip" role="group" aria-label="Trending destinations">
+        {PLACES.map((p) => (
+          <button key={p.id} type="button" className="strip-card" onClick={() => onPick?.(p)}>
+            <img src={photo(p)} alt="" width="800" height="533" loading="lazy" decoding="async" />
+            <span>{p.name}<small>{p.country}</small></span>
+          </button>
+        ))}
       </div>
     </section>
   );

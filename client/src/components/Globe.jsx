@@ -1,18 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { PLACES, COUNTS, photo } from '../lib/places.js';
 
-// Interactive 3D globe (three.js). Drag to spin, hover a pin for its name, click a pin (or its button)
-// to rotate to it and pre-fill the prompt. Pauses when off-screen / tab hidden; honours reduced motion;
-// falls back to a static card if WebGL is unavailable. Colours are read from the CSS theme variables.
-export const PLACES = [
-  { name: 'Shillong', lat: 25.57, lon: 91.88, prompt: '4 days in Shillong, Meghalaya: waterfalls, living root bridges and cosy cafés, mid budget' },
-  { name: 'Kyoto', lat: 35.01, lon: 135.77, prompt: 'A cosy 4-day food trip to Kyoto in spring, mid budget' },
-  { name: 'Lisbon', lat: 38.72, lon: -9.14, prompt: '3 days in Lisbon with a toddler, slow mornings' },
-  { name: 'Hanoi', lat: 21.03, lon: 105.85, prompt: 'Budget-friendly weekend in Hanoi, street food and coffee' },
-  { name: 'Cusco', lat: -13.53, lon: -71.97, prompt: '5 days in Cusco and the Sacred Valley, acclimatise slowly, mid budget' },
-];
-
+// "Trending now" 3D globe (three.js). 13 curated destinations (6 India, 7 abroad).
+// Drag to spin, hover a dot for its photo card, click a dot: the globe turns + zooms to it, a flight arc is drawn
+// from the previous pick, and the trip is written into the prompt box (typewriter, see PromptForm).
+// Pauses when off-screen / tab hidden; honours reduced motion; falls back if WebGL is unavailable.
 const R = 1;
+const Z_FAR = 4.1;
+const Z_NEAR = 3.5;
 const rad = (d) => (d * Math.PI) / 180;
 const toVec = (lat, lon, r = R) => new THREE.Vector3(r * Math.cos(rad(lat)) * Math.sin(rad(lon)), r * Math.sin(rad(lat)), r * Math.cos(rad(lat)) * Math.cos(rad(lon)));
 const cssColor = (name, fallback) => {
@@ -33,12 +29,13 @@ const webglOk = () => {
   }
 };
 
-export default function Globe({ onPick, className = '' }) {
+export default function Globe({ onPick }) {
   const mount = useRef(null);
   const label = useRef(null);
   const api = useRef({});
   const [failed, setFailed] = useState(() => !webglOk());
-  const [active, setActive] = useState(null);
+  const [active, setActive] = useState(0); // selected place (drives the photo card)
+  const [hover, setHover] = useState(-1);
 
   useEffect(() => {
     if (failed || !mount.current) return undefined;
@@ -52,12 +49,13 @@ export default function Globe({ onPick, className = '' }) {
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     el.appendChild(renderer.domElement);
-    renderer.domElement.style.cssText = 'width:100%;height:100%;display:block;touch-action:pan-y;cursor:grab';
-    renderer.domElement.setAttribute('aria-hidden', 'true');
+    const dom = renderer.domElement;
+    dom.style.cssText = 'width:100%;height:100%;display:block;touch-action:pan-y;cursor:grab';
+    dom.setAttribute('aria-hidden', 'true');
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 20);
-    camera.position.set(0, 0, 4.1);
+    camera.position.set(0, 0, Z_FAR);
     const globe = new THREE.Group();
     scene.add(globe);
 
@@ -90,41 +88,48 @@ export default function Globe({ onPick, className = '' }) {
     const gratMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.3 });
     globe.add(new THREE.LineSegments(gratGeo, gratMat));
 
-    // --- pins, hit targets, pulse rings
-    const pinMat = new THREE.MeshBasicMaterial();
-    const ringMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.6, side: THREE.DoubleSide });
-    const pinGeo = new THREE.SphereGeometry(0.032, 16, 12);
-    const hitGeo = new THREE.SphereGeometry(0.11, 10, 8);
-    const ringGeo = new THREE.RingGeometry(0.04, 0.052, 32);
+    // --- pins: India = berry, abroad = sky. One ring material per pin so pulses fade independently.
+    const pinMats = { india: new THREE.MeshBasicMaterial(), world: new THREE.MeshBasicMaterial() };
+    const pinGeo = new THREE.SphereGeometry(0.026, 16, 12);
+    const hitGeo = new THREE.SphereGeometry(0.05, 10, 8);
+    const ringGeo = new THREE.RingGeometry(0.034, 0.045, 32);
     const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+    const ringMats = [];
     const pins = PLACES.map((p, idx) => {
-      const pos = toVec(p.lat, p.lon, R * 1.005);
-      const pin = new THREE.Mesh(pinGeo, pinMat);
+      const pos = toVec(p.lat, p.lon, R * 1.004);
+      const pin = new THREE.Mesh(pinGeo, pinMats[p.region]);
       pin.position.copy(pos);
       const hit = new THREE.Mesh(hitGeo, hitMat);
       hit.position.copy(pos);
       hit.userData.idx = idx;
-      const ring = new THREE.Mesh(ringGeo, ringMat);
+      const rm = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+      ringMats.push(rm);
+      const ring = new THREE.Mesh(ringGeo, rm);
       ring.position.copy(pos);
       ring.lookAt(pos.clone().multiplyScalar(2));
       globe.add(pin, hit, ring);
-      return { pos, pin, hit, ring, p };
+      return { pos, pin, hit, ring, rm, p };
     });
 
-    // --- route arcs between neighbouring pins, drawn progressively
-    const arcMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.9 });
-    const arcs = [];
-    for (let i = 0; i < PLACES.length - 1; i++) {
-      const a = pins[i].pos;
-      const b = pins[i + 1].pos;
-      const mid = a.clone().add(b).multiplyScalar(0.5).normalize().multiplyScalar(R * (1 + 0.28 * a.distanceTo(b)));
-      const pts2 = new THREE.QuadraticBezierCurve3(a, mid, b).getPoints(64);
-      const g = new THREE.BufferGeometry().setFromPoints(pts2);
-      g.setDrawRange(0, 0);
-      const line = new THREE.Line(g, arcMat);
-      globe.add(line);
-      arcs.push({ g, n: pts2.length, t: -i * 0.35 });
-    }
+    // --- one "flight" arc, redrawn from the previous pick to the new one
+    const arcMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.95 });
+    const arcGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+    const arc = new THREE.Line(arcGeo, arcMat);
+    arc.visible = false;
+    globe.add(arc);
+    const arcState = { n: 0, t: 1 };
+    const flyArc = (from, to) => {
+      const a = pins[from].pos;
+      const b = pins[to].pos;
+      const mid = a.clone().add(b).multiplyScalar(0.5).normalize().multiplyScalar(R * (1 + 0.32 * a.distanceTo(b)));
+      const pts2 = new THREE.QuadraticBezierCurve3(a, mid, b).getPoints(72);
+      arc.geometry.dispose();
+      arc.geometry = new THREE.BufferGeometry().setFromPoints(pts2);
+      arc.geometry.setDrawRange(0, 0);
+      arcState.n = pts2.length;
+      arcState.t = 0;
+      arc.visible = true;
+    };
 
     // --- theme colours (re-read when data-theme flips)
     const applyTheme = () => {
@@ -132,41 +137,57 @@ export default function Globe({ onPick, className = '' }) {
       haloMat.color.copy(cssColor('--blush', '#f6cdd1'));
       dotMat.color.copy(cssColor('--leaf-deep', '#44703a'));
       gratMat.color.copy(cssColor('--leaf', '#5f8f4c'));
-      pinMat.color.copy(cssColor('--berry', '#e2677a'));
-      ringMat.color.copy(cssColor('--berry', '#e2677a'));
+      pinMats.india.color.copy(cssColor('--berry', '#e2677a'));
+      pinMats.world.color.copy(cssColor('--sky', '#3d93b8'));
+      pins.forEach((x) => x.rm.color.copy(x.p.region === 'india' ? pinMats.india.color : pinMats.world.color));
       arcMat.color.copy(cssColor('--sun', '#e9c23d'));
     };
     applyTheme();
     const themeObs = new MutationObserver(applyTheme);
     themeObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-    // --- state
-    const st = { yaw: -rad(90), pitch: 0.35, vy: 0, vp: 0, drag: false, moved: 0, lx: 0, ly: 0, target: null, hover: -1, visible: true, last: performance.now() };
+    // --- state (kept in a plain object so the render loop never touches React)
+    const calm = reducedMotion();
+    const st = { yaw: -rad(80), pitch: 0.4, vy: 0, vp: 0, drag: false, moved: 0, lx: 0, ly: 0, target: null, zt: Z_FAR, hover: -1, active: 0, visible: true, last: performance.now() };
     const ray = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
-    const calm = reducedMotion();
 
-    const rotateTo = (idx) => {
+    const select = (idx, fromUser) => {
       const p = PLACES[idx];
+      if (idx !== st.active && !calm) flyArc(st.active, idx);
+      st.active = idx;
       st.target = { yaw: -rad(p.lon), pitch: Math.max(-0.9, Math.min(0.9, rad(p.lat))) };
+      st.zt = Z_NEAR;
+      setActive(idx);
+      if (fromUser) onPick?.(p);
     };
-    api.current.rotateTo = rotateTo;
+    api.current.select = (i) => select(i, true);
 
     const pick = (e) => {
-      const r = renderer.domElement.getBoundingClientRect();
+      const r = dom.getBoundingClientRect();
       ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       ray.setFromCamera(ndc, camera);
       const hit = ray.intersectObjects([core, ...pins.map((x) => x.hit)], false)[0];
       return hit && hit.object.userData.idx !== undefined ? hit.object.userData.idx : -1;
     };
+    const setHoverIdx = (h) => {
+      if (h === st.hover) return;
+      st.hover = h;
+      setHover(h);
+      dom.style.cursor = h >= 0 ? 'pointer' : st.drag ? 'grabbing' : 'grab';
+      if (label.current) {
+        label.current.style.opacity = h >= 0 ? '1' : '0';
+        if (h >= 0) label.current.textContent = PLACES[h].name;
+      }
+    };
 
-    const dom = renderer.domElement;
     const onDown = (e) => {
       st.drag = true;
       st.moved = 0;
       st.lx = e.clientX;
       st.ly = e.clientY;
       st.target = null;
+      st.zt = Z_FAR;
       dom.setPointerCapture?.(e.pointerId);
       dom.style.cursor = 'grabbing';
     };
@@ -182,15 +203,7 @@ export default function Globe({ onPick, className = '' }) {
         st.yaw += st.vy;
         st.pitch = Math.max(-0.9, Math.min(0.9, st.pitch + st.vp));
       } else {
-        const h = pick(e);
-        if (h !== st.hover) {
-          st.hover = h;
-          dom.style.cursor = h >= 0 ? 'pointer' : 'grab';
-          if (label.current) {
-            label.current.style.opacity = h >= 0 ? '1' : '0';
-            if (h >= 0) label.current.textContent = PLACES[h].name;
-          }
-        }
+        setHoverIdx(pick(e));
       }
     };
     const onUp = (e) => {
@@ -199,17 +212,10 @@ export default function Globe({ onPick, className = '' }) {
       dom.style.cursor = st.hover >= 0 ? 'pointer' : 'grab';
       if (wasClick) {
         const h = pick(e);
-        if (h >= 0) {
-          rotateTo(h);
-          setActive(h);
-          onPick?.(PLACES[h]);
-        }
+        if (h >= 0) select(h, true);
       }
     };
-    const onLeave = () => {
-      st.hover = -1;
-      if (label.current) label.current.style.opacity = '0';
-    };
+    const onLeave = () => setHoverIdx(-1);
     dom.addEventListener('pointerdown', onDown);
     dom.addEventListener('pointermove', onMove);
     dom.addEventListener('pointerup', onUp);
@@ -226,7 +232,6 @@ export default function Globe({ onPick, className = '' }) {
     const ro = new ResizeObserver(resize);
     ro.observe(el);
     resize();
-
     const io = new IntersectionObserver(([en]) => (st.visible = en.isIntersecting), { threshold: 0.01 });
     io.observe(el);
 
@@ -251,19 +256,20 @@ export default function Globe({ onPick, className = '' }) {
         st.vp *= 0.9;
         st.yaw += st.vy;
         st.pitch = Math.max(-0.9, Math.min(0.9, st.pitch + st.vp));
-        if (!calm && st.hover < 0) st.yaw += dt * 0.18;
+        if (!calm && st.hover < 0 && st.zt === Z_FAR) st.yaw += dt * 0.15;
       }
+      camera.position.z += (st.zt - camera.position.z) * Math.min(1, dt * 4);
       globe.rotation.set(st.pitch, st.yaw, 0);
       halo.rotation.copy(globe.rotation);
 
       const tt = now / 1000;
       pins.forEach((x, i) => {
-        const k = (tt * 0.7 + i * 0.4) % 1;
-        x.ring.scale.setScalar(1 + k * 2.2);
-        x.ring.material.opacity = 0.6 * (1 - k);
-        const grow = i === st.hover ? 1.5 : 1;
+        const k = (tt * 0.7 + i * 0.37) % 1;
+        const isAct = i === st.active;
+        x.ring.scale.setScalar(1 + k * (isAct ? 3.4 : 2.2));
+        x.rm.opacity = (isAct ? 0.9 : 0.55) * (1 - k);
+        const grow = i === st.hover || isAct ? 1.55 : 1;
         x.pin.scale.setScalar(x.pin.scale.x + (grow - x.pin.scale.x) * 0.2);
-        // fade pins/rings that face away from the camera
         tmp.copy(x.pos).applyEuler(globe.rotation);
         const vis = tmp.z > -0.05;
         x.pin.visible = x.ring.visible = vis;
@@ -274,11 +280,10 @@ export default function Globe({ onPick, className = '' }) {
           label.current.style.transform = `translate(${((tmp.x + 1) / 2) * w}px, ${((1 - tmp.y) / 2) * h - 14}px) translate(-50%, -100%)`;
         }
       });
-      arcs.forEach((a) => {
-        a.t += dt * 0.35;
-        const p = Math.max(0, Math.min(1, a.t % 2.6 < 1.6 ? (a.t % 2.6) / 1.6 : 1));
-        a.g.setDrawRange(0, Math.floor(p * a.n));
-      });
+      if (arc.visible && arcState.t < 1) {
+        arcState.t = Math.min(1, arcState.t + dt / 1.1);
+        arc.geometry.setDrawRange(0, Math.floor(arcState.t * arcState.n));
+      }
       renderer.render(scene, camera);
     };
     raf = requestAnimationFrame(frame);
@@ -293,21 +298,24 @@ export default function Globe({ onPick, className = '' }) {
       dom.removeEventListener('pointerup', onUp);
       dom.removeEventListener('pointercancel', onUp);
       dom.removeEventListener('pointerleave', onLeave);
-      [coreMat, haloMat, dotMat, gratMat, pinMat, ringMat, arcMat, hitMat].forEach((m) => m.dispose());
-      [dotGeo, gratGeo, pinGeo, hitGeo, ringGeo, core.geometry, halo.geometry, ...arcs.map((a) => a.g)].forEach((g) => g.dispose());
+      [coreMat, haloMat, dotMat, gratMat, hitMat, arcMat, pinMats.india, pinMats.world, ...ringMats].forEach((m) => m.dispose());
+      [dotGeo, gratGeo, pinGeo, hitGeo, ringGeo, core.geometry, halo.geometry, arc.geometry].forEach((g) => g.dispose());
       renderer.dispose();
       dom.remove();
     };
   }, [failed, onPick]);
 
-  const choose = (i) => {
-    setActive(i);
-    api.current.rotateTo?.(i);
-    onPick?.(PLACES[i]);
-  };
-
+  const shown = PLACES[hover >= 0 ? hover : active];
   return (
-    <div className={`globe-wrap ${className}`}>
+    <div className="globe-wrap">
+      <div className="trend-head">
+        <h2 className="trend-title">Trending now</h2>
+        <p className="trend-legend">
+          <span><i className="dot india" />India {COUNTS.india}</span>
+          <span><i className="dot world" />Abroad {COUNTS.world}</span>
+        </p>
+      </div>
+
       {failed ? (
         <div className="globe-fallback" role="img" aria-label="Globe unavailable on this device">🌍</div>
       ) : (
@@ -315,13 +323,25 @@ export default function Globe({ onPick, className = '' }) {
           <div className="globe-label" ref={label} aria-hidden="true" />
         </div>
       )}
-      <div className="globe-chips" role="group" aria-label="Pick a destination">
+
+      <figure className="place-card" key={shown.id}>
+        <img src={photo(shown)} alt={`${shown.name}, ${shown.country}`} width="800" height="533" loading="lazy" decoding="async" />
+        <figcaption>
+          <strong>{shown.name}<small>{shown.country}</small></strong>
+          <span>{shown.tag}</span>
+        </figcaption>
+      </figure>
+      <p className="globe-hint muted">Click a dot and the trip writes itself in the box</p>
+
+      {/* Accessible alternative to the canvas: real buttons, visible only when focused */}
+      <div className="globe-chips sr-focusable" role="group" aria-label="Trending destinations">
         {PLACES.map((p, i) => (
-          <button key={p.name} type="button" className={`chip btn-chip${active === i ? ' on' : ''}`} onClick={() => choose(i)} aria-pressed={active === i}>
+          <button key={p.id} type="button" className={`chip btn-chip${active === i ? ' on' : ''}`} onClick={() => (api.current.select ? api.current.select(i) : (setActive(i), onPick?.(PLACES[i])))} aria-pressed={active === i}>
             {p.name}
           </button>
         ))}
       </div>
+      <a className="credits muted" href="/credits.html" target="_blank" rel="noopener">Photo credits</a>
     </div>
   );
 }
