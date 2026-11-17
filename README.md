@@ -98,9 +98,11 @@ Real booking systems (IRCTC, MakeMyTrip, Goibibo, Google Pay) are **not** public
 
 `GET /api/integrations` returns this registry.
 
+> **Weather on the hosted demo:** verified returning real Open-Meteo data when run locally (e.g. Shillong, fog, 20/9 °C), but on Render's free tier Open-Meteo answers the forecast call with **HTTP 429** (its free tier rate-limits shared cloud IPs), so the hosted endpoint currently returns the deterministic mock with `"mock": true`. The server logs the reason. Fixes: Open-Meteo's paid API key, a different keyless provider such as MET Norway, or a short per-city cache.
+
 | Capability | Endpoint | Status now | Real provider path |
 |---|---|---|---|
-| **Weather** | `GET /api/integrations/weather?city=&start=&days=` | **Live** ([Open-Meteo](https://open-meteo.com), free, no key; mock fallback if offline) | already real |
+| **Weather** | `GET /api/integrations/weather?city=&start=&days=` | **Live** ([Open-Meteo](https://open-meteo.com), free, no key) with automatic, flagged mock fallback. See the note below | already real |
 | **Transport** | `GET /api/integrations/transport/search?from=&to=&date=&mode=train\|flight\|bus&passengers=` | Mock | IRCTC through an authorised partner API · MakeMyTrip B2B / Amadeus for flights · redBus partner API for buses |
 | **Stays** | `GET /api/integrations/stays/search?city=&checkin=&nights=&guests=&type=hotel\|homestay\|hostel\|any&maxPriceInr=` | Mock | Booking.com Demand API · Goibibo (MakeMyTrip) partner API · a homestay aggregator (Airbnb has no public booking API) |
 | **Payments** | `POST /api/integrations/payments/intent` then `POST /api/integrations/payments/confirm` | Mock (no money moves) | Google Pay API in the browser + a PSP (Razorpay / Stripe) on the server; UPI intent via the PSP |
