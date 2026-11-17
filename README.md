@@ -1,46 +1,77 @@
-# 🍓 Wayfarer — AI trip planner
+# Voyage.AI: AI trip planner with a 3D globe
 
-Describe a trip in plain English. The model streams back **structured blocks** (trip, days, stops, checklists, budget chart, tips) which the app validates and renders as interactive cards you can expand, edit, drag, remove, undo and refine. It is **not** a chatbot: the UI never prints model text.
+Describe a trip in plain English. A real LLM streams back **structured blocks** (trip, days, stops, checklist, budget chart, tips). The app validates every block and renders them as an interactive, stateful itinerary you can expand, edit, drag, remove, undo and refine. The model's text is never shown to the user: this is **not a chatbot**.
 
 **Live demo:** https://tripplanner-q2k7.onrender.com
-> ⏳ Hosted on Render's free tier: the service **spins down after ~15 min idle**, so the first request can take 30–60 s to wake. The live demo uses Google Gemini via its OpenAI-compatible API (key held server-side only). With no key configured it falls back to a built-in **mock model** (badge in the header).
 
-## Setup
+> ⏳ Hosted on Render's free tier: the service **spins down after ~15 min idle**, so the first request can take 30–60 s to wake.
+> The live demo calls Google **Gemini** (`gemini-3.5-flash-lite`) from the server. If no key is configured the app falls back to a built-in **mock model** (a "demo model" badge appears in the header), so it always works.
 
-Requires Node 20+.
+| Landing (3D globe, drag + click pins) | Generated plan |
+|---|---|
+| ![Landing](docs/screenshots/landing-desktop.png) | ![Plan](docs/screenshots/plan-desktop.png) |
 
-```bash
-npm install
-cp .env.example .env     # optional: add a key. With no key you get the mock model
-npm run dev              # API on :8787, web on http://localhost:5173
-npm test                 # parser + reducer unit tests
+| Mobile landing | Mobile plan |
+|---|---|
+| <img src="docs/screenshots/landing-mobile.png" width="260" alt="Mobile landing"> | <img src="docs/screenshots/plan-mobile.png" width="260" alt="Mobile plan"> |
+
+---
+
+## Brief → where it's met
+
+| Requirement | Where |
+|---|---|
+| React, hooks, functional components | `client/src/**` (no class components) |
+| Free-form text input | `PromptForm` in `components/Panels.jsx` |
+| Real LLM API | `server/providers/` (Gemini via OpenAI-compatible API, Anthropic, or mock). **Server-side only**; the key never reaches the browser |
+| Structured data → interactive stateful UI | NDJSON blocks, validated by a shared zod schema, folded into a reducer, rendered as cards |
+| Bad output: malformed JSON, wrong shape, empty, slow, failed | [Failure handling](#failure-handling-the-important-part) |
+| No crashes; error or retry | `ErrorPanel` with Retry, one silent auto-retry, partial results kept |
+| Stale response must not overwrite a newer one | request id + `AbortController` in `usePlanner` |
+| Loading / error / empty states | skeleton, streaming status bar, error panel, landing hero |
+| Mobile | single-column layout, touch reorder buttons, tested at 390 px |
+| 3D interactive frontend | three.js globe + CSS 3D tilt (see [3D](#3d-and-motion)) |
+
+## Frontend architecture
+
+```
+App.jsx ── useReducer(historyReducer)            plan state + undo/redo (pure, unit-tested)
+   │    └─ usePlanner(dispatch)                  request lifecycle: reqId, AbortController, retry, stall watchdog
+   │
+   ├─ Landing (no plan yet)    Globe (lazy, three.js) · Polaroids (CSS 3D tilt) · ReviewCards (swipe) · PromptForm
+   └─ Plan view                PromptForm · StatusBar · ErrorPanel · ItineraryView (days/stops, DnD, keyboard)
+                               Extras (checklist · budget chart · tip) · RefineBar · SessionsPanel
 ```
 
-Production / Docker (what the live demo runs):
-
-```bash
-docker compose up --build         # http://localhost:8787
-# or
-docker build -t wayfarer . && docker run -p 8787:8787 --env-file .env wayfarer
-```
-
-Real model: set `ANTHROPIC_API_KEY`, **or** `LLM_PROVIDER=openai` + `LLM_BASE_URL` / `LLM_MODEL` / `LLM_API_KEY` for any OpenAI-compatible API (Groq, Gemini, OpenRouter, OpenAI, Ollama). See `.env.example`. The key lives only on the server; the browser never sees it.
-
-Deploying to Render: see [Deploy](#deploy-render-free) below.
-
-## How it works
+**From unpredictable text to reliable UI**
 
 ```
-browser ──POST /api/plan──▶ Express ──stream──▶ LLM (Anthropic | OpenAI-compat | mock)
-   ▲                           │ NDJSON lines → forgiving parser → zod validation
-   └── NDJSON events ◀─────────┘   {event: start | block | warn | done | error}
+browser ──POST /api/plan──▶ Express ──stream──▶ LLM (Gemini | Anthropic | mock)
+   ▲                           │  NDJSON lines → forgiving parser → zod validation
+   └── NDJSON events ◀─────────┘  {event: start | block | warn | done | error}
 ```
 
-- **Protocol.** The model emits one JSON block per line (NDJSON) rather than one giant document. Each block is validated the moment its line completes and forwarded immediately, so the UI **streams** and a single bad line costs one block, not the whole response. Schema lives in `shared/` and is used by both server and client (the client re-validates everything it receives).
-- **Block types.** `trip`, `day`, `stop` (cards), `checklist` (stateful), `chart` (budget bars), `tip`. Each has its own renderer.
-- **Refinement loop.** Follow-ups send the *current plan* (including your manual edits) back as blocks; the model returns the updated plan. Every AI step and manual edit is undoable (Ctrl+Z / Ctrl+Shift+Z).
-- **Reorder.** Drag the ⋮⋮ handle, or use ↑/↓ buttons (touch), or **Alt+↑/↓** on a focused card (cross-day moves supported). Enter expands, Delete removes.
-- **Sessions.** Autosaved to `localStorage` (validated on load), listed in the 📒 panel. Dark mode toggle, reduced-motion respected.
+- **One JSON block per line** instead of one giant document. Each line is validated as soon as it completes and forwarded immediately, so the UI **streams**, and one bad line costs one block, not the whole answer.
+- **Shared schema** (`shared/index.js`, zod) is used by server *and* client; the client re-validates everything it receives.
+- **Pure reducer** (`client/src/lib/planReducer.js`) holds the plan plus undo/redo history. Every AI step and every manual edit is one undoable action. Unit-tested.
+- **Stale-response guard** (`hooks/usePlanner.js`): every request gets an id and an `AbortController`; only the newest request may touch state. Esc cancels.
+- **Optimistic, forgiving rendering**: optional fields default (`.catch`) instead of failing; unknown categories fall back to a generic icon.
+- **Sessions**: autosaved to `localStorage`, validated again on load.
+
+### 3D and motion
+
+- **Interactive globe** (`components/Globe.jsx`, three.js): drag to spin with inertia, hover a pin for its name, click a pin (or its button) and the globe turns to face it and **pre-fills the prompt** with a trip for that place. Animated route arcs and pulsing pins.
+- **Performance + safety**: lazy-loaded chunk (the page paints before three.js arrives), pauses when off-screen or the tab is hidden, `prefers-reduced-motion` stops auto-rotation, WebGL feature-detected with a static fallback, all geometries/materials/renderer disposed on unmount, colours read from the CSS theme tokens (follows dark mode).
+- **Accessible alternative**: the canvas is `aria-hidden`; every pin also exists as a real `<button>` below it.
+- **CSS 3D tilt** on the polaroids (pointer position → `perspective()` rotation via CSS variables, no re-renders).
+- The globe is a dotted sphere + graticule: no real continent data is bundled. Scene "photos" are original inline-SVG illustrations, and the review cards are **sample copy**, labelled as such in the UI.
+
+### Design system
+
+- Tokens as CSS variables (`styles.css`): watercolour sage / blush / cream / leaf palette, light + dark theme (follows the OS, toggle persists).
+- Typography: **Sora** (display) + **Inter** (body), self-hosted via `@fontsource-variable` so nothing is fetched from a third party and the strict CSP stays intact.
+- Layout: the landing is vertically centred in the viewport; at ≤1020 px it collapses to one column and the polaroids become a snap-scrolling strip.
+- Accessibility: visible focus rings, labelled controls, `role="status"` live region for progress, `role="alert"` for errors, keyboard reordering (**Alt+↑/↓**), Enter expands, Delete removes, Ctrl+Z undo.
 
 ## Failure handling (the important part)
 
@@ -50,53 +81,108 @@ browser ──POST /api/plan──▶ Express ──stream──▶ LLM (Anthrop
 | Bad optional field (`cost:"abc"`, unknown category) | schema `.catch` | field defaulted, stop kept |
 | Pretty-printed / fenced / differently-keyed JSON | whole-document fallback | recovered via balanced-brace scan + normaliser |
 | Prose, empty reply, zero stops | server | `NO_ITINERARY` error + Retry |
-| Upstream 4xx/5xx/429/timeout/unreachable | providers + server | mapped to safe error codes (no upstream bodies/keys leaked), `retryable` flag |
+| Upstream 4xx/5xx/429/timeout/unreachable | providers + server | mapped to safe error codes (no upstream bodies or keys leaked), `retryable` flag |
 | Stream dies mid-response | client | partial plan **kept**, error + Retry shown |
-| Network drop / server stalls >30 s | client watchdog | `STALLED`/`TRUNCATED`/`NETWORK` error |
+| Network drop / server stalls >30 s | client watchdog | `STALLED` / `TRUNCATED` / `NETWORK` error |
 | Retryable error before any output | client | one silent auto-retry |
-| Stale response | `usePlanner` | request id + `AbortController`; only the newest request can touch state; Esc cancels |
+| Stale response | `usePlanner` | request id + `AbortController`; only the newest request can touch state |
 | Failed with nothing received | reducer | previous plan restored |
 | Oversize / invalid request, rate limit, overload | server | 400/413/429/503 JSON errors; per-IP limit + concurrency cap |
 | Client disconnects | server | upstream call aborted (no wasted tokens) |
 
-**Try them live** by putting a tag in the prompt (mock model only): `[fail]` `[slow]` `[garbage]` `[empty]` `[partial]` `[pretty]`, e.g. `3 days in Rome [partial]`.
+**Try them live** by adding a tag to the prompt (mock model only): `[fail]` `[slow]` `[garbage]` `[empty]` `[partial]` `[pretty]`, e.g. `3 days in Rome [partial]`.
+
+## Proposed integration endpoints (future work)
+
+Real booking systems (IRCTC, MakeMyTrip, Goibibo, Google Pay) are **not** publicly callable from a student project: they need partner agreements, licences or merchant accounts. So the backend ships a **stable contract** under `/api/integrations/*`. Today one capability is live and three are clearly flagged mocks (`"mock": true`); swapping a mock for a real provider means replacing one function body, with no change to the UI contract.
+
+`GET /api/integrations` returns this registry.
+
+| Capability | Endpoint | Status now | Real provider path |
+|---|---|---|---|
+| **Weather** | `GET /api/integrations/weather?city=&start=&days=` | **Live** ([Open-Meteo](https://open-meteo.com), free, no key; mock fallback if offline) | already real |
+| **Transport** | `GET /api/integrations/transport/search?from=&to=&date=&mode=train\|flight\|bus&passengers=` | Mock | IRCTC through an authorised partner API · MakeMyTrip B2B / Amadeus for flights · redBus partner API for buses |
+| **Stays** | `GET /api/integrations/stays/search?city=&checkin=&nights=&guests=&type=hotel\|homestay\|hostel\|any&maxPriceInr=` | Mock | Booking.com Demand API · Goibibo (MakeMyTrip) partner API · a homestay aggregator (Airbnb has no public booking API) |
+| **Payments** | `POST /api/integrations/payments/intent` then `POST /api/integrations/payments/confirm` | Mock (no money moves) | Google Pay API in the browser + a PSP (Razorpay / Stripe) on the server; UPI intent via the PSP |
+
+Example:
+
+```bash
+curl "$URL/api/integrations/weather?city=Shillong&days=3"
+curl "$URL/api/integrations/transport/search?from=Guwahati&to=Shillong&date=2026-12-02&mode=bus"
+curl -X POST "$URL/api/integrations/payments/intent" -H 'content-type: application/json' \
+     -d '{"amountInr":2500,"method":"gpay","description":"Shillong stay"}'
+```
+
+**How it would plug into the planner**
+
+1. *Weather* → feed the forecast into the prompt so the model reorders outdoor stops around rain, and drive the packing checklist (`packingHints` is already returned).
+2. *Transport* → a new `transport` block type between days (add to `shared/`, reducer, renderer, prompt, mock, test; the repo's conventions list exactly these steps).
+3. *Stays* → a `stay` block per night with a "swap" action that calls the search endpoint.
+4. *Payments* → create an intent for the trip total, run Google Pay's `loadPaymentData()` in the browser, send the token to the PSP-backed confirm step. **Raw card numbers must never touch this server**: the intent schema is `.strict()`, so a card number in the body is rejected (covered by a test).
+
+All integration routes share the per-IP rate limiter, validate every parameter with zod, and return the same `{error:{code,message,retryable}}` shape as the planner.
+
+## Setup
+
+Requires Node 20+.
+
+```bash
+npm install
+cp .env.example .env     # optional: add a key. With no key you get the mock model
+npm run dev              # API on :8787, web on http://localhost:5173
+npm test                 # 17 tests: server parser + integrations, client reducer
+npm run build && npm start   # production: Express serves client/dist
+```
+
+Docker (also what Render can run): `docker compose up --build` → http://localhost:8787
+
+**Real model** (server-side only):
+
+- Gemini (what the live demo uses): `LLM_PROVIDER=openai`, `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai`, `LLM_MODEL=gemini-3.5-flash-lite`, `LLM_API_KEY=…`, **`LLM_STREAM=false`**
+- Anthropic: `ANTHROPIC_API_KEY`
+- Any other OpenAI-compatible API (Groq, OpenRouter, OpenAI, Ollama): `LLM_PROVIDER=openai` + `LLM_BASE_URL` / `LLM_MODEL` / `LLM_API_KEY`
+
+Why `LLM_STREAM=false` for Gemini: during testing, SSE streaming from Gemini 3.x through the OpenAI-compatible endpoint hung with no bytes for 40 s+, while a plain request returned in ~4 s. With that flag the server makes one non-streaming call and feeds the reply through the same line parser, so blocks still reach the UI one by one. A larger Gemini model (`gemini-3.8-flash`) took ~87 s per plan and hit the 90 s upstream timeout, which is why the demo uses the `flash-lite` model.
+
+Deploy on Render: **New → Blueprint** → select the repo (`render.yaml`: Docker, free plan, health check `/healthz`), then add the `LLM_*` variables in the Environment tab. Never commit keys.
 
 ## AI-usage note
 
-AI (Claude) wrote the basic code. The **workflow was designed by me**: the product flow, the NDJSON block protocol, the failure-handling plan, the refinement loop, and the structure of the app. I then used AI to put the pieces in place, and to debug, review, test, and fix breakages. Final deployment was also done with AI assistance. At runtime the app calls an LLM only through `server/providers/*`, server-side.
+AI (Claude) wrote most of the boilerplate and helped debug. The **flow and design were mine**: the colour palette and mood, the main user flow, the decision to stream one block per line, the failure-handling plan, the refinement loop and the 3D globe interaction. I then used AI to put the pieces in place, and to debug, review and test them. Deployment and the Gemini/Render configuration were also done with AI assistance. At runtime the app calls an LLM only through `server/providers/*`, server-side.
+
+## Time spent
+
+About **5 hours** in total:
+
+| Activity | Time |
+|---|---|
+| UI design: colours, main flow map-out | ~1 h |
+| AI-assisted coding | ~2 h |
+| Debugging and deploying | ~1 h |
+| Polishing | ~1 h |
 
 ## Known limitations
 
 - Rate limiter and sessions are in-memory / `localStorage`: fine for one instance; use Redis + a DB to scale or sync across devices.
-- Times and costs come from the model and are **estimates**, not bookings; no maps/geocoding or live prices.
+- Times and costs come from the model and are **estimates**; there are no real maps, geocoding or live prices. Transport, stays and payments endpoints are mocks (see above).
 - Reordering doesn't recompute times; a refine pass can.
 - Refinement re-emits the full plan (simple and robust) rather than patch ops, so it costs more tokens on big plans.
-- Native HTML5 drag-and-drop doesn't work on touch screens; buttons and the "Move to" menu cover mobile.
-- Free Render tier cold-starts and has no persistent disk.
+- Native HTML5 drag-and-drop doesn't work on touch screens; the ↑/↓ buttons and the "Move to" menu cover mobile.
+- Gemini is called without streaming (see above), so on the live demo a plan appears after a few seconds rather than card by card.
+- The free Render tier cold-starts and has no persistent disk.
+- The globe has no real continent outlines; the pins are five example destinations.
 
-## Time spent
+## What I'd do next
 
-About **54 hours** in total:
-
-| Activity | Time |
-|---|---|
-| Designing the workflow | ~36 h |
-| Basic code (AI-assisted) | ~10 h |
-| Putting things in place with AI: debugging, review, testing, fixing breaks | ~6 h |
-| Approach finalisation and deployment (with AI) | ~2 h |
-
-## Deploy (Render, free)
-
-1. Push this folder to a GitHub repo.
-2. Render dashboard → **New → Blueprint** → select the repo (uses `render.yaml`, Docker runtime, free plan, health check `/healthz`).
-3. *(Optional)* In the service's **Environment** tab add `ANTHROPIC_API_KEY` (or the `LLM_*` vars) for a real model; leave empty for the mock demo.
-4. Copy the `https://….onrender.com` URL into the **Live demo** line at the top of this README.
+Wire the weather endpoint into the prompt, add `transport` and `stay` block types, replace the mock stays/transport adapters with a licensed provider, add Playwright end-to-end tests for the failure tags, and move sessions to a small DB so plans sync across devices.
 
 ## Layout
 
 ```
 shared/   zod block schema (single source of truth)
-server/   Express API, providers (anthropic | openai-compat | mock), parser, tests
-client/   React + Vite UI: reducer w/ undo history, usePlanner hook, components, tests
+server/   Express API, providers (gemini/openai-compat | anthropic | mock), parser, integrations/, tests
+client/   React + Vite UI: reducer with undo history, usePlanner hook, components (incl. 3D Globe), tests
+docs/screenshots/   images used above
 Dockerfile · docker-compose.yml · render.yaml · CLAUDE.md
 ```

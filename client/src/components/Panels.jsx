@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Strawberry, Blossom } from './Decor.jsx';
 
 export const EXAMPLES = [
@@ -7,18 +7,21 @@ export const EXAMPLES = [
   'Budget-friendly weekend in Hanoi, street food and coffee',
 ];
 
-export function PromptForm({ onSubmit, busy, onCancel }) {
-  const [v, setV] = useState('');
+export function PromptForm({ onSubmit, busy, onCancel, big = false, initial = '', seed }) {
+  const [v, setV] = useState(initial);
   const ref = useRef(null);
+  useEffect(() => {
+    if (seed?.n) { setV(seed.text); ref.current?.focus({ preventScroll: true }); }
+  }, [seed?.n]);
   const submit = (e) => {
     e?.preventDefault();
     if (busy || v.trim().length < 3) return;
     onSubmit(v.trim());
   };
   return (
-    <form className="card prompt" onSubmit={submit}>
+    <form className={`card prompt${big ? ' big' : ''}`} onSubmit={submit}>
       <label htmlFor="trip-prompt" className="sr">Describe your trip</label>
-      <textarea id="trip-prompt" ref={ref} rows={3} maxLength={1000} value={v} placeholder="Where to, for how long, and what are you into? e.g. 5 days in Seoul, cafés and night markets"
+      <textarea id="trip-prompt" ref={ref} rows={big ? 4 : 3} maxLength={1000} value={v} placeholder="Where to, for how long, and what are you into? e.g. 5 days in Seoul, cafés and night markets"
         onChange={(e) => setV(e.target.value)} onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && submit(e)} />
       <div className="prompt-foot">
         <div className="examples">

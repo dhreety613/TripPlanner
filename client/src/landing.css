@@ -1,0 +1,102 @@
+/* Voyage.AI: typography + centered landing hero. Loaded after styles.css. */
+h1, h2, h3, .wordmark, .btn, .eyebrow { font-family: var(--font-display); }
+h2, h3 { letter-spacing: -0.01em; }
+.brand { font-weight: 700; letter-spacing: -0.02em; }
+.wordmark b { color: var(--leaf-deep); font-weight: 700; }
+.btn { letter-spacing: 0.01em; }
+
+/* --- Landing: fill the viewport, content centred --- */
+.app.landing { max-width: 1240px; }
+.app.landing main { min-height: calc(100svh - 150px); justify-content: center; }
+.hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 660px) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 28px;
+  padding: 8px 0 24px;
+}
+.hero-center { min-width: 0; display: flex; flex-direction: column; gap: 14px; align-items: stretch; position: relative; z-index: 2; }
+.eyebrow { text-align: center; margin: 0; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--leaf-deep); }
+.hero h1 { margin: 0; text-align: center; font-size: clamp(2rem, 4.6vw, 3.4rem); line-height: 1.08; letter-spacing: -0.035em; font-weight: 700; color: var(--ink); }
+.hero .ul { position: relative; color: var(--berry-deep); white-space: nowrap; }
+.hero .ul-svg { position: absolute; left: 4%; right: 4%; bottom: -0.2em; width: 92%; height: 0.26em; }
+.lede { margin: 0 auto; max-width: 52ch; text-align: center; color: var(--muted); font-size: 1.02rem; }
+
+/* big prompt card */
+.card.prompt.big { padding: 22px; border-radius: 28px; border-width: 2px; box-shadow: 0 18px 40px rgba(80, 100, 40, 0.22), 0 3px 0 var(--line); position: relative; }
+.card.prompt.big::before { content: ''; position: absolute; inset: 7px; border: 1.5px dashed var(--line); border-radius: 22px; pointer-events: none; }
+.card.prompt.big textarea { font-size: 1.08rem; min-height: 124px; border-radius: 18px; padding: 14px 16px; position: relative; }
+.card.prompt.big .btn { padding: 12px 26px; font-size: 1rem; }
+
+/* polaroids + doodles */
+.hero-side { position: relative; display: flex; flex-direction: column; gap: 18px; align-items: center; min-height: 420px; justify-content: center; }
+.polaroid { margin: 0; background: #fff; padding: 9px 9px 6px; border-radius: 6px; box-shadow: 0 10px 24px rgba(60, 70, 30, 0.22); width: min(230px, 100%); transition: transform 0.25s; }
+.polaroid:hover { z-index: 4; box-shadow: 0 18px 34px rgba(60, 70, 30, 0.3); }
+.polaroid-art { aspect-ratio: 3 / 2; overflow: hidden; border-radius: 3px; }
+.polaroid-art svg { display: block; width: 100%; height: 100%; }
+.polaroid figcaption { text-align: center; padding: 8px 4px 4px; font-family: var(--font-display); font-size: 0.78rem; font-weight: 600; color: #3b3a2e; }
+.polaroid.p1 { transform: rotate(-5deg) translateX(-6px); }
+.polaroid.p2 { transform: rotate(4deg) translateX(14px); }
+.polaroid.p3 { transform: rotate(5deg); width: min(250px, 100%); }
+.doodle { position: absolute; pointer-events: none; }
+.d-compass { width: 64px; left: -8px; top: 6px; transform: rotate(-12deg); }
+.d-plane { width: 190px; right: -6px; top: 6px; }
+.d-suitcase { width: 58px; left: 4%; bottom: 3%; transform: rotate(-8deg); }
+.d-cloud1 { width: 90px; top: -4px; left: 6%; opacity: 0.9; animation: drift 14s ease-in-out infinite alternate; }
+.d-cloud2 { width: 70px; top: 40px; right: 8%; opacity: 0.8; animation: drift 11s ease-in-out infinite alternate-reverse; }
+.d-spark1 { top: 3%; left: 19%; animation: twinkle 2.6s infinite; }
+.d-spark2 { top: 9%; right: 17%; animation: twinkle 3.1s 0.6s infinite; }
+.d-blossom1 { bottom: 8%; left: 33%; animation: spin 20s linear infinite; }
+.d-blossom2 { bottom: 14%; right: 31%; animation: spin 26s linear infinite reverse; }
+.hero-strip { display: none; }
+
+/* floating, swipeable review cards */
+.reviews { margin-top: 10px; outline-offset: 6px; }
+.review-stack { position: relative; height: 158px; touch-action: pan-y; }
+.review { position: absolute; inset: 0; margin: 0 auto; width: min(100%, 520px); background: var(--card); border: 1.5px solid var(--line); border-radius: 20px; padding: 14px 18px; box-shadow: var(--shadow); user-select: none; cursor: grab; display: flex; flex-direction: column; gap: 8px; justify-content: space-between; }
+.review.top:active { cursor: grabbing; }
+.review.sh { background: linear-gradient(135deg, var(--card), #eaf3dc); }
+.review.cb { background: linear-gradient(135deg, var(--card), #fde6ee); }
+.review.lk { background: linear-gradient(135deg, var(--card), #e3f0f7); }
+.review p { margin: 0; font-size: 0.95rem; line-height: 1.45; }
+.review footer { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; line-height: 1.25; }
+.review small { color: var(--muted); }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--berry); color: #fff; display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; }
+.stars { display: inline-flex; gap: 2px; }
+.review-ctl { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 6px; }
+
+:root[data-theme='dark'] .polaroid { background: #efe9d6; }
+:root[data-theme='dark'] .review.sh, :root[data-theme='dark'] .review.cb, :root[data-theme='dark'] .review.lk { background: var(--card); }
+
+@keyframes drift { to { transform: translateX(26px); } }
+@keyframes twinkle { 50% { transform: scale(0.5) rotate(20deg); opacity: 0.5; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* tablet + phone: single centred column, scenes become a strip */
+@media (max-width: 1020px) {
+  .app.landing { overflow-x: clip; }
+  .hero .ul { white-space: normal; }
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  .hero-side.left { display: none; }
+  .hero-side.right { min-height: 0; order: 2; margin: 8px 0; }
+  .hero-center { order: 1; }
+  .hero-strip { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 6px 2px 10px; order: 3; }
+  .hero-strip svg { flex: 0 0 72%; max-width: 280px; border-radius: 16px; scroll-snap-align: center; box-shadow: var(--shadow); }
+  .app.landing main { min-height: auto; }
+}
+@media (max-width: 560px) {
+  .card.prompt.big { padding: 16px; border-radius: 22px; }
+  .review-stack { height: 190px; }
+}
+
+/* 3D globe */
+.globe-wrap { width: min(380px, 100%); display: flex; flex-direction: column; align-items: center; gap: 10px; position: relative; z-index: 2; }
+.globe-canvas, .globe-fallback { position: relative; width: 100%; aspect-ratio: 1; }
+.globe-fallback { display: grid; place-items: center; font-size: 6rem; }
+.globe-label { position: absolute; left: 0; top: 0; pointer-events: none; opacity: 0; transition: opacity 0.15s; background: var(--ink); color: var(--card); font: 600 0.75rem var(--font-display); padding: 3px 10px; border-radius: 999px; white-space: nowrap; z-index: 3; }
+.globe-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.btn-chip.on { background: var(--berry); color: #fff; }
+.globe-hint { font-size: 0.75rem; }
+
+.app.landing .hist { display: none; }

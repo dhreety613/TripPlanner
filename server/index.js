@@ -8,6 +8,7 @@ import { getProvider } from './providers/index.js';
 import { ProviderError } from './providers/http.js';
 import { SYSTEM, buildUser } from './prompt.js';
 import { createLineParser, parseWhole } from './parser.js';
+import { createIntegrationsRouter } from './integrations/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const provider = getProvider();
@@ -144,6 +145,9 @@ app.post('/api/plan', async (req, res) => {
     console.log(JSON.stringify({ level: 'info', msg: 'plan', id, provider: provider.name, ms: Date.now() - t0, blocks, dropped, refine: !!current, outcome }));
   }
 });
+
+// Integration endpoints (weather live via Open-Meteo; transport/stays/payments are flagged mocks).
+app.use('/api/integrations', (req, res, next) => (allow(req.ip) ? next() : fail(res, 429, 'RATE_LIMITED', 'Too many requests. Wait a few seconds.', true)), createIntegrationsRouter());
 
 // Unknown /api routes + malformed JSON bodies get JSON errors, never HTML stack traces.
 app.use('/api', (_req, res) => fail(res, 404, 'NOT_FOUND', 'Unknown endpoint'));

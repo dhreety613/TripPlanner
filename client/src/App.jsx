@@ -3,8 +3,9 @@ import { historyReducer, initialHistory, emptyPlan, isEmpty, uid } from './lib/p
 import { listSessions, saveSession, deleteSession } from './lib/storage.js';
 import { usePlanner } from './hooks/usePlanner.js';
 import { ItineraryView } from './components/ItineraryView.jsx';
-import { PromptForm, RefineBar, StatusBar, ErrorPanel, Skeleton, EmptyState, SessionsPanel } from './components/Panels.jsx';
+import { PromptForm, RefineBar, StatusBar, ErrorPanel, Skeleton, SessionsPanel } from './components/Panels.jsx';
 import { Strawberry } from './components/Decor.jsx';
+import { Landing } from './components/Landing.jsx';
 
 export default function App() {
   const [hist, dispatch] = useReducer(historyReducer, initialHistory);
@@ -17,6 +18,8 @@ export default function App() {
   const [health, setHealth] = useState(null);
   const [theme, setTheme] = useState(() => document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
   const lastReq = useRef(null);
+  const [seed, setSeed] = useState({ text: '', n: 0 });
+  const pickPlace = useCallback((pl) => setSeed((x) => ({ text: pl.prompt, n: x.n + 1 })), []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -74,16 +77,17 @@ export default function App() {
 
   const hasPlan = !isEmpty(plan);
   const showSkeleton = planner.busy && !hasPlan;
+  const landing = !hasPlan && !planner.busy;
   const retry = () => lastReq.current && start(lastReq.current.prompt, lastReq.current.refine);
 
   return (
-    <div className="app">
+    <div className={`app${landing ? ' landing' : ''}`}>
       <header className="top">
-        <div className="brand"><Strawberry size={34} /><span>Wayfarer</span></div>
+        <div className="brand"><Strawberry size={34} /><span className="wordmark">Voyage<b>.AI</b></span></div>
         <nav className="top-actions">
           {health?.mock && <span className="chip demo" title="No API key configured: responses come from a built-in mock model.">demo model</span>}
-          <button className="icon-btn" onClick={() => dispatch({ type: 'undo' })} disabled={!hist.past.length || planner.busy} aria-label="Undo" title="Undo (Ctrl+Z)">↶</button>
-          <button className="icon-btn" onClick={() => dispatch({ type: 'redo' })} disabled={!hist.future.length || planner.busy} aria-label="Redo" title="Redo (Ctrl+Shift+Z)">↷</button>
+          <button className="icon-btn hist" onClick={() => dispatch({ type: 'undo' })} disabled={!hist.past.length || planner.busy} aria-label="Undo" title="Undo (Ctrl+Z)">↶</button>
+          <button className="icon-btn hist" onClick={() => dispatch({ type: 'redo' })} disabled={!hist.future.length || planner.busy} aria-label="Redo" title="Redo (Ctrl+Shift+Z)">↷</button>
           <button className="icon-btn" onClick={() => setShowSessions((s) => !s)} aria-label="Saved trips" aria-pressed={showSessions} title="Saved trips">📒</button>
           <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle dark mode" title="Toggle theme">{theme === 'dark' ? '☀️' : '🌙'}</button>
         </nav>
@@ -93,9 +97,19 @@ export default function App() {
         {showSessions && <SessionsPanel sessions={sessions} onLoad={loadSession} onNew={newTrip} onClose={() => setShowSessions(false)}
           onDelete={(id) => { deleteSession(id); setSessions(listSessions()); }} />}
 
-        <PromptForm busy={planner.busy} onCancel={planner.cancel} onSubmit={(p) => start(p, false)} />
-        <StatusBar planner={planner} />
-        {planner.error && <ErrorPanel error={planner.error} onRetry={retry} onDismiss={planner.dismiss} />}
+        {landing ? (
+          <Landing onPick={pickPlace}>
+            <PromptForm big seed={seed} initial={lastPrompt} busy={planner.busy} onCancel={planner.cancel} onSubmit={(p) => start(p, false)} />
+            <StatusBar planner={planner} />
+            {planner.error && <ErrorPanel error={planner.error} onRetry={retry} onDismiss={planner.dismiss} />}
+          </Landing>
+        ) : (
+          <>
+            <PromptForm initial={lastPrompt} busy={planner.busy} onCancel={planner.cancel} onSubmit={(p) => start(p, false)} />
+            <StatusBar planner={planner} />
+            {planner.error && <ErrorPanel error={planner.error} onRetry={retry} onDismiss={planner.dismiss} />}
+          </>
+        )}
 
         {showSkeleton && <Skeleton />}
         {!showSkeleton && hasPlan && (
@@ -104,7 +118,6 @@ export default function App() {
             <RefineBar busy={planner.busy} onSubmit={(p) => start(p, true)} />
           </>
         )}
-        {!showSkeleton && !hasPlan && !planner.error && <EmptyState />}
       </main>
       <footer className="foot muted">Drag ⋮⋮ or use Alt+↑/↓ to reorder · Enter expands · Delete removes · Ctrl+Z undoes</footer>
     </div>
