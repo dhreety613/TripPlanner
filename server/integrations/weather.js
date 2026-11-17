@@ -23,15 +23,17 @@ export async function getWeather({ city, start, days }, { offline = false } = {}
   const from = start || new Date().toISOString().slice(0, 10);
   if (!offline) {
     try {
-      const geo = await (
-        await fetch(`https://geocoding-api.open-meteo.com/v1/search?count=1&name=${encodeURIComponent(city)}`, { signal: AbortSignal.timeout(6000) })
-      ).json();
+      const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?count=1&name=${encodeURIComponent(city)}`, { signal: AbortSignal.timeout(6000) });
+      if (!geoRes.ok) throw new Error(`geocoding HTTP ${geoRes.status}`);
+      const geo = await geoRes.json();
       const g = geo.results?.[0];
       if (g) {
         const url =
           `https://api.open-meteo.com/v1/forecast?latitude=${g.latitude}&longitude=${g.longitude}` +
           `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&start_date=${from}&end_date=${addDays(from, days - 1)}`;
-        const f = await (await fetch(url, { signal: AbortSignal.timeout(6000) })).json();
+        const fRes = await fetch(url, { signal: AbortSignal.timeout(6000) });
+        if (!fRes.ok) throw new Error(`forecast HTTP ${fRes.status}`);
+        const f = await fRes.json();
         if (f.daily?.time?.length) {
           const out = f.daily.time.map((date, i) => ({
             date,
@@ -43,8 +45,9 @@ export async function getWeather({ city, start, days }, { offline = false } = {}
           return envelope('open-meteo', { mock: false, city: g.name, country: g.country, days: out, packingHints: packing(out) });
         }
       }
-    } catch {
-      /* fall through to mock */
+    } catch (e) {
+      // Log only a short reason (never URLs with user data beyond the city, never keys), then fall back to mock.
+      console.warn(JSON.stringify({ level: 'warn', msg: 'weather upstream failed, using mock', reason: String(e?.message || e).slice(0, 120) }));
     }
   }
   const r = seeded(`${city}|${from}`);
